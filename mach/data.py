@@ -4,7 +4,7 @@ import glob
 import cv2
 import numpy as np
 import pandas as pd
-from keras.applications.resnet50 import preprocess_input as resnet_preprocess_input
+from keras.applications.mobilenet import preprocess_input as mobilenet_preprocess_input
 
 from mach.util import full_path
 
@@ -26,12 +26,11 @@ def img_from_file(file):
   return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 ### Augmentation functions
+CROP_SIZE = (70,390,0,640)
+IMAGE_SIZE = (320, 160) # divisable by 32 for MobileNet
 
 def preprocess_valid_images(images):
-	crop_size = (80,380,20,620)
-	image_size = (300, 150)
-
-	fn = lambda i: preprocess_valid_image(i, crop_size, image_size)
+	fn = lambda i: preprocess_valid_image(i, CROP_SIZE, IMAGE_SIZE)
 	return list(map(fn, images))
 
 def preprocess_valid_image(image, crop_size, image_size):	
@@ -40,8 +39,6 @@ def preprocess_valid_image(image, crop_size, image_size):
 
 # augment a group of images with the same values
 def augment_images(images):
-	crop_size = (80,380,20,620)
-	image_size = (300, 150)
 	brightness_min = 0.7
 	brightness_max = 1.25
 	brightness = np.random.uniform(brightness_min, brightness_max)
@@ -64,7 +61,7 @@ def augment_images(images):
 	scale_y1 = np.random.uniform(scale_y1_min, scale_y1_max)
 	scale_y2 = np.random.uniform(scale_y2_min, scale_y2_max)
 
-	fn = lambda image: augment_image(image, crop_size, image_size, brightness, translation_x, translation_y, scale_x1, scale_x2, scale_y1, scale_y2)
+	fn = lambda image: augment_image(image, CROP_SIZE, IMAGE_SIZE, brightness, translation_x, translation_y, scale_x1, scale_x2, scale_y1, scale_y2)
 
 	return list(map(fn, images))
 
@@ -211,43 +208,60 @@ def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct
 	pd.DataFrame(valid_results, columns=["file_path", "speed"]).to_csv("{}/valid/files_labels.csv".format(file_path))
 
 
-def create_raw_train_generator(batch_size, image_size):
-	image_files, train_labels = raw_train_data()
-	generator = ImageFileGenerator(batch_size, image_files, train_labels, image_size, resnet_preprocessor)
-	return (len(image_files) // batch_size , generator)
+def create_mobilenet_generators(folder_path, batch_size, is_debug):
+	train = create_mobilenet_generator("{}/train".format(folder_path), batch_size, is_debug)
+	valid = create_mobilenet_generator("{}/valid".format(folder_path), batch_size, is_debug)
+
+	return (train, valid, image_shape(folder_path, mobilenet_preprocessor))
+
+def image_shape(folder_path, preprocessor):
+	image_file = pd.read_csv("{}/train/files_labels.csv".format(folder_path))['file_path'][0]
+	image = img_from_file(image_file)
+	return list(list(preprocessor([image], [0.]))[0])[0].shape
+
+def create_mobilenet_generator(folder_path, batch_size, is_debug):
+	df = pd.read_csv("{}/files_labels.csv".format(folder_path))
+	files = df['file_path']
+	labels = df['speed']
+	if is_debug:
+		end = min(len(files), 200)
+		files = files[0:end]
+		labels = labels[0:end]
+	g = ImageFileGenerator(batch_size, files, labels, mobilenet_preprocessor)
+	return (len(files) // batch_size , g)
+
+def mobilenet_preprocessor(images, labels):
+	map_images = map(mobilenet_preprocess_input, map(as_(np.float32), images))
+	print('********mobilenet_preprocessor**********')
+	return (list(map_images), labels)
+
+def as_(dtype):
+	return lambda image: np.array(image, dtype=dtype)
+	
 
 class ImageFileGenerator():
-	def __init__(self, batch_size, image_files, labels, image_size, preprocessor):
+	def __init__(self, batch_size, image_files, labels, preprocessor):
 		self.batch_size = batch_size
 		self.image_files = image_files
 		self.labels = labels
-		self.image_size = image_size
 		self.index = 0
+		self.preprocessor = preprocessor
+
+	def _increment_index(self, end):
+		if end == len(self.labels):
+			self.index = 0
+		else:
+			self.index += self.batch_size
 
 	def __next__(self):
 		return self.next()
 
 	def next(self):
 		start = self.index
-		end = min(self.index+self.batch_size, len(self.data))
-		batch_files = self.image_files[start:end]
+		end = min(self.index+self.batch_size, len(self.labels))
+		batch_images = map(img_from_file, self.image_files[start:end])
 		batch_labels = self.labels[start:end]
-		batch_images = [preprocessor(self.image(i)) for i in batch_files]
 
-		result = preprocessor(batch_images, batch_labels, self.image_size)
+		self._increment_index(end)
 
-		if end == len(self.data):
-			self.index = 0
-		else:
-			self.index += self.batch_size
-
-		return result 
-
-	def image(self, file):
-		return cv2.imread(file)
-
-def resnet_preprocessor(images, labels, image_size):
-	return (resnet_preprocess_input(np.array([cv2.resize(i, image_size) for i in images], dtype=np.float64)), labels)
-
-
-
+		return self.preprocessor(batch_images, batch_labels) 
