@@ -1,0 +1,10 @@
+video_data/*
+data/*
+.DS_Store
+model.ckpt
+*.ckpt
+.ipynb_checkpoints/*
+mach/__pycache__
+
+!data/.keep
+!video_data/.keep
