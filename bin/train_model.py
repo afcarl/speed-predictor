@@ -69,7 +69,7 @@ def main(_):
 		callbacks = [
 			ModelCheckpoint(config.model_checkpoint(), verbose=FLAGS.verbose, save_best_only=True),
 			CSVLogger(config.csv_log_file()),
-			EarlyStopping(monitor='mean_squared_error', min_delta=FLAGS.min_delta, patience=FLAGS.patience, verbose=1)
+			EarlyStopping(monitor='val_loss', min_delta=FLAGS.min_delta, patience=FLAGS.patience, verbose=1)
 		]
 
 	print("Compiling model.")
