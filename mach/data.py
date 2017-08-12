@@ -222,7 +222,8 @@ def image_shape(folder_path, preprocessor):
 	return list(list(preprocessor([image], [0.]))[0])[0].shape
 
 def create_mobilenet_generator(folder_path, batch_size, is_debug):
-	df = pd.read_csv("{}/files_labels.csv".format(folder_path))
+	# Load csv and shuffle
+	df = pd.read_csv("{}/files_labels.csv".format(folder_path)).sample(frac=1).reset_index(drop=True)
 	files = df['file_path']
 	labels = df['speed']
 	if is_debug:
