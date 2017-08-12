@@ -31,7 +31,7 @@ IMAGE_SIZE = (320, 160) # divisable by 32 for MobileNet
 
 def preprocess_valid_images(images):
 	fn = lambda i: preprocess_valid_image(i, CROP_SIZE, IMAGE_SIZE)
-	return list(map(fn, images))
+	return map(fn, images)
 
 def preprocess_valid_image(image, crop_size, image_size):	
 	image = crop_image(image,crop_size)
@@ -192,7 +192,9 @@ def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct
 		if i % 100 == 0: print("Finished with {} original images.".format(i))
 
 		if np.random.uniform() < valid_pct:
-			image = average_optical_flow_dense(list(map(img_from_file, train_files[i:i+num_images])))
+			files = train_files[i:i+num_images]
+			train_images = preprocess_valid_images(map(img_from_file, files))
+			image = average_optical_flow_dense(list(train_images))
 			img_file_path = "{}/valid/frame_{}_{}.jpg".format(file_path, i, i+num_images)
 			cv2.imwrite(img_file_path, image)
 			valid_results.append((img_file_path, speed))
@@ -224,7 +226,7 @@ def create_mobilenet_generator(folder_path, batch_size, is_debug):
 	files = df['file_path']
 	labels = df['speed']
 	if is_debug:
-		end = min(len(files), 200)
+		end = min(len(files), 1024)
 		files = files[0:end]
 		labels = labels[0:end]
 	g = ImageFileGenerator(batch_size, files, labels, mobilenet_preprocessor)
@@ -232,8 +234,7 @@ def create_mobilenet_generator(folder_path, batch_size, is_debug):
 
 def mobilenet_preprocessor(images, labels):
 	map_images = map(mobilenet_preprocess_input, map(as_(np.float32), images))
-	print('********mobilenet_preprocessor**********')
-	return (list(map_images), labels)
+	return (np.array(list(map_images)), labels)
 
 def as_(dtype):
 	return lambda image: np.array(image, dtype=dtype)

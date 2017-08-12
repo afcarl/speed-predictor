@@ -21,7 +21,7 @@ class Config():
 		self.folder = folder
 		self.max_epochs = max_epochs
 		self.batch_size = batch_size
-		self.min_delta = min_delta
+		self.min_delta = int(min_delta*1000)
 		self.patience = patience
 		self.alpha = int(alpha*100)
 
@@ -63,7 +63,7 @@ def main(_):
 	model = create_optical_flow_model(input_shape, FLAGS.alpha)
 
 	if FLAGS.debug:
-		# print(model.summary())
+		print(model.summary())
 		callbacks = None
 	else:
 		callbacks = [
