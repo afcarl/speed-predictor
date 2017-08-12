@@ -11,7 +11,7 @@ import sys
 
 # Get full path to a resource underneath this project (speed_racer)
 def full_path(name):
-    base_dir_name = "speed_racer"
+    base_dir_name = "speed-predictor"
     base_dir_list = os.getcwd().split("/")
     i = base_dir_list.index(base_dir_name)
     return "/".join(base_dir_list[0:i+1]) + "/" + name
@@ -20,7 +20,7 @@ def full_path(name):
 
 # TODO: change these to command line inputs.
 bucket_name = 'kd-carnd'
-key_name = 'speed_racer/'
+key_name = 'speed-predictor/'
 region_name = 'us-east-2'
 
 def upload_s3(rel_path):
