@@ -6,6 +6,7 @@ from keras.layers.normalization import BatchNormalization
 from keras.layers.pooling import GlobalAveragePooling2D
 from keras.layers.convolutional import Conv2D
 from keras.layers.merge import concatenate
+from keras import regularizers
 from keras.applications.mobilenet import MobileNet, _depthwise_conv_block, _conv_block
 from keras import backend as K
 
@@ -22,21 +23,54 @@ def create_mobilenet_plus_model(input_shape, num_images, alpha, dropout=0.5):
 		encoder_outputs.append(encoder_model(encoder_input))
 
 	x = concatenate(encoder_outputs)
-	x = Conv2D(256, (1,1), padding='same')(x)
+	x = BatchNormalization()(x)
+	x = Activation('relu')(x)
+	x = Dropout(0.7)(x)
+	x = Conv2D(256, (1,1), padding='same', kernel_regularizer=regularizers.l2(0.01))(x)
 	x = GlobalAveragePooling2D()(x)
-	x = Dense(128)(x)
+	x = Dense(128, kernel_regularizer=regularizers.l2(0.01))(x)
 	x = BatchNormalization()(x)
 	x = Activation('relu')(x)
 	x = Dropout(dropout)(x)
-	x = Dense(32)(x)
+	x = Dense(32, kernel_regularizer=regularizers.l2(0.01))(x)
 	output = Dense(1, name='mobilenet_plus_output')(x)
 
 	model = Model(inputs=encoder_inputs, outputs=output, name='optical_flow_model_mobilenet')
 	return model
 
-def create_optical_flow_model(input_shape, alpha):
-	input = Input(shape=input_shape)
-	encoder = MobileNet(input_tensor=input, alpha=alpha, include_top=False, pooling='avg')
+
+def create_optical_flow_model(input_shape, num_images, alpha):
+	encoder_input = Input(shape=input_shape)
+	encoder = MobileNet(input_tensor=encoder_input, alpha=alpha, include_top=False, pooling=None, weights=None)
+	encoder_model = Model(inputs=encoder_input, outputs=encoder.output, name='mobilenet_shared')
+
+	for layer in encoder.layers:
+		layer.trainable = False
+
+	encoder_outputs = []
+	encoder_inputs = []
+	for i in range(num_images):
+		encoder_input = Input(shape=input_shape, name="frame_{}".format(i))
+		encoder_inputs.append(encoder_input)
+		encoder_outputs.append(encoder_model(encoder_input))
+
+	optical_model = MobileNetSlim(input_shape, alpha)
+
+	x = concatenate(encoder_outputs + optical_model.outputs)
+	x = BatchNormalization()(x)
+	x = Activation('relu')(x)
+	x = Dropout(0.7)(x)
+	x = Conv2D(256, (1,1), padding='same', kernel_regularizer=regularizers.l2(0.01))(x)
+	x = GlobalAveragePooling2D()(x)
+	x = Dense(128, kernel_regularizer=regularizers.l2(0.01))(x)
+	x = BatchNormalization()(x)
+	x = Activation('relu')(x)
+	x = Dropout(0.5)(x)
+	x = Dense(32, kernel_regularizer=regularizers.l2(0.01))(x)
+	output = Dense(1, name='speed')(x)
+
+	model = Model(inputs=encoder_inputs + optical_model.inputs, outputs=output, name='optical_flow_model_mobilenet')
+	return model
 
 	net = Dropout(0.5)(encoder.output)
 	speed = Dense(1, name='speed')(net)
@@ -44,24 +78,35 @@ def create_optical_flow_model(input_shape, alpha):
 	model = Model(inputs=input, outputs=speed, name='optical_flow_model_mobilenet')
 	return model
 
-def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, dropout=0.7):
+def create_mobilenet_model(input_shape, alpha):
 	input = Input(shape=input_shape)
+	encoder = MobileNet(input_tensor=input, alpha=alpha, include_top=False, pooling=None)
+
+	for layer in encoder.layers:
+		layer.trainable = False
+
+	model = Model(inputs=input, outputs=encoder.output, name='mobilenet_model')
+	return model
+
+
+def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, dropout=0.7):
+	input = Input(shape=input_shape, name='flow')
 
 	x = _conv_block(input, 32, alpha, strides=(2, 2))
-	x = _depthwise_conv_block(x, 64, alpha, depth_multiplier, block_id=1)
+	x = _depthwise_conv_block(x, 64, alpha, depth_multiplier, strides=(2, 2), block_id=1)
 
 	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, strides=(2, 2), block_id=2)
-	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, block_id=3)
+	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, strides=(2, 2), block_id=3)
 
 	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, strides=(2, 2), block_id=4)
 	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
 
-	x = GlobalAveragePooling2D()(x)
-	x = Dense(128)(x)
-	x = BatchNormalization()(x)
-	x = Activation('relu')(x)
-	x = Dropout(dropout)(x)
-	output = Dense(output_classes, name='mobilenet_slim_output')(x)
+	# x = GlobalAveragePooling2D()(x)
+	# x = Dense(128)(x)
+	# x = BatchNormalization()(x)
+	# x = Activation('relu')(x)
+	# x = Dropout(dropout)(x)
+	# output = Dense(output_classes, name='mobilenet_slim_output')(x)
 
-	model = Model(inputs=input, outputs=output, name='optical_flow_model_mobilenet')
+	model = Model(inputs=input, outputs=x, name='optical_flow_encoder')
 	return model
