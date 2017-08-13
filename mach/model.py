@@ -31,8 +31,6 @@ def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, drop
 	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
 
 	x = GlobalAveragePooling2D()(x)
-
-	x = Dropout(dropout)(x)
 	output = Dense(output_classes, name='mobilenet_slim_output')(x)
 
 	model = Model(inputs=input, outputs=output, name='optical_flow_model_mobilenet')
