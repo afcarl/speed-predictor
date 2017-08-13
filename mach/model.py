@@ -61,7 +61,8 @@ def create_optical_flow_model(input_shape, num_images, alpha):
 	x = Activation('relu')(x)
 	x = Dropout(0.7)(x)
 	x = Conv2D(256, (1,1), padding='same', kernel_regularizer=regularizers.l2(0.01))(x)
-	x = GlobalAveragePooling2D()(x)
+	x = Flatten()(x)
+	x = BatchNormalization()(x)
 	x = Dense(128, kernel_regularizer=regularizers.l2(0.01))(x)
 	x = BatchNormalization()(x)
 	x = Activation('relu')(x)
@@ -70,12 +71,6 @@ def create_optical_flow_model(input_shape, num_images, alpha):
 	output = Dense(1, name='speed')(x)
 
 	model = Model(inputs=encoder_inputs + optical_model.inputs, outputs=output, name='optical_flow_model_mobilenet')
-	return model
-
-	net = Dropout(0.5)(encoder.output)
-	speed = Dense(1, name='speed')(net)
-
-	model = Model(inputs=input, outputs=speed, name='optical_flow_model_mobilenet')
 	return model
 
 def create_mobilenet_model(input_shape, alpha):
