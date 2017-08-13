@@ -1,7 +1,7 @@
 #!/bin/python 
 
 from keras.models import Model, load_model
-from keras.layers import Dense, Input, Flatten, Dropout
+from keras.layers import Dense, Input, Flatten, Dropout, Activation
 from keras.layers.normalization import BatchNormalization
 from keras.layers.pooling import GlobalAveragePooling2D
 from keras.applications.mobilenet import MobileNet, _depthwise_conv_block, _conv_block
@@ -31,7 +31,14 @@ def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, drop
 	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
 
 	x = GlobalAveragePooling2D()(x)
+	x = Dense(128)(x)
+	x = BatchNormalization()(x)
+	x = Activation('relu')(x)
+	x = Dropout(dropout)(x)
 	output = Dense(output_classes, name='mobilenet_slim_output')(x)
 
 	model = Model(inputs=input, outputs=output, name='optical_flow_model_mobilenet')
 	return model
+
+m=MobileNetSlim((160,320,3), 0.75)
+print(m.summary())
