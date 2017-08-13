@@ -80,8 +80,8 @@ def main(_):
 	print("Compiling model.")
 	model.compile(
 		optimizer=Adam(lr=0.001),
-		loss={'speed': 'mean_squared_error'},
-		metrics=['mean_squared_error'])
+		loss={'mobilenet_slim_output': 'mean_squared_error'},
+		metrics=['mean_absolute_error'])
 
 	print("Starting model train process.")
 	model.fit_generator(train_generator,
