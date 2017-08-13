@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import pandas as pd
 from keras.applications.mobilenet import preprocess_input as mobilenet_preprocess_input
+from sklearn.model_selection import train_test_split
 
 from mach.util import full_path
 
@@ -225,6 +226,61 @@ def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct
 	pd.DataFrame(train_results, columns=columns).to_csv("{}/train/files_labels.csv".format(file_path))
 	pd.DataFrame(valid_results, columns=columns).to_csv("{}/valid/files_labels.csv".format(file_path))
 
+
+def create_optical_flow_data_recurrent(file_path):
+	train_files, train_labels = raw_train_data()
+	results = []
+	print("Processing a total of {} images.".format(len(train_labels)))
+
+	for i in range(1, len(train_labels)):
+		speed = train_labels[i]
+		if i % 100 == 0: print("Finished with {} original images.".format(i))
+
+		preprocess_valid_images
+
+		imgs = list(preprocess_valid_images(map(img_from_file, train_files[i-1:i+1])))
+		flow = average_optical_flow_dense(imgs)
+		flow_file_path = "{}/flow_{}.jpg".format(file_path, i)
+		cv2.imwrite(flow_file_path, flow)
+		row = [flow_file_path, speed]
+		results.append(row)
+
+	columns = ["flow_path", "speed"]
+	pd.DataFrame(results, columns=columns).to_csv("{}/files_labels.csv".format(file_path))
+
+
+def create_recurrent_generators(folder_path, batch_size, sequence_size, is_debug):
+	df = pd.read_csv("{}/files_labels.csv".format(folder_path))
+	if is_debug:
+		end = min(len(df), 1024)
+		df = df[0:end]
+
+	recurrent_idxs = np.array([i for i in range(0, len(df)-sequence_size, sequence_size // 2)])
+	train_idxs, valid_idxs, _, _ = train_test_split(recurrent_idxs, recurrent_idxs, test_size=0.30, random_state=42)
+
+	train = (len(train_idxs) // batch_size, RecurrentGenerator(df, train_idxs, batch_size, sequence_size))
+	valid = (len(valid_idxs) // batch_size, RecurrentGenerator(df, valid_idxs, batch_size, sequence_size))
+	return train, valid, train[1].next()[0].shape[2:]
+
+class RecurrentGenerator():
+	def __init__(self, df, idxs, batch_size, sequence_size):
+		self.df = df
+		self.idxs = idxs
+		self.batch_size = batch_size
+		self.sequence_size = sequence_size
+
+	def __next__(self):
+		return self.next()
+
+	def next(self):
+		start_idxs = self.idxs[np.random.randint(0, len(self.idxs), self.batch_size)]
+		labels = self.df['speed'][start_idxs + self.sequence_size - 1]
+		images = np.array([recurrent_sequence(i, self.df, self.sequence_size) for i in start_idxs])
+
+		return (images, labels)
+
+def recurrent_sequence(idx, df, sequence_size):
+	return mobilenet_preprocessor(map(img_from_file, df['flow_path'][idx:idx+sequence_size]))
 
 def create_mobilenet_generators(folder_path, batch_size, num_images, is_debug):
 	train = create_mobilenet_generator("{}/train".format(folder_path), batch_size, num_images, is_debug)

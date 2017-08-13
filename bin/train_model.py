@@ -12,21 +12,25 @@ from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
 from keras import metrics
 import numpy as np
 
-from mach.model import create_optical_flow_model, MobileNetSlim, create_mobilenet_plus_model
+from mach.model import create_optical_flow_model, MobileNetSlim, create_mobilenet_plus_model, recurrent_net
 from mach.util import isAWS, upload_s3, stop_instance, full_path
-from mach.data import create_mobilenet_generators
+from mach.data import create_mobilenet_generators, create_recurrent_generators
 
 class Config():
-	def __init__(self, folder, max_epochs, batch_size, min_delta, patience, alpha):
+	def __init__(self, folder, max_epochs, batch_size, min_delta, patience, alpha, is_recurrent):
 		self.folder = folder
 		self.max_epochs = max_epochs
 		self.batch_size = batch_size
 		self.min_delta = int(min_delta*1000)
 		self.patience = patience
 		self.alpha = int(alpha*100)
+		if is_recurrent:
+			self.is_recurrent = "recurrent"
+		else:
+			self.is_recurrent = "non_recurrent"
 
 	def model_name(self):
-		return "{}_{}_{}_{}_{}_{}".format(self.folder, self.max_epochs, self.batch_size, self.min_delta, self.patience, self.alpha)
+		return "{}_{}_{}_{}_{}_{}_{}".format(self.folder, self.max_epochs, self.batch_size, self.min_delta, self.patience, self.alpha, self.is_recurrent)
 
 	def model_checkpoint(self):
 		return "{}.ckpt".format(self.model_name())
@@ -49,21 +53,28 @@ flags.DEFINE_integer('verbose', 0, 'Whether to use verbose logging when construc
 flags.DEFINE_boolean('stop', True, 'Stop aws instance after finished running.')
 flags.DEFINE_float('min_delta', 0.005, 'Early stopping minimum change value.')
 flags.DEFINE_integer('patience', 20, 'Early stopping epochs patience to wait before stopping.')
+flags.DEFINE_boolean('is_recurrent', False, 'If this is processing for a recurrent model or not.')
 
 def main(_):
-	config = Config(FLAGS.folder, FLAGS.max_epochs, FLAGS.batch_size, FLAGS.min_delta, FLAGS.patience, FLAGS.alpha)
+	config = Config(FLAGS.folder, FLAGS.max_epochs, FLAGS.batch_size, FLAGS.min_delta, FLAGS.patience, FLAGS.alpha, FLAGS.is_recurrent)
 	print("Training model named", config.model_name())
 
 	folder_path = full_path("data/{}".format(FLAGS.folder))
 
-	train, valid, input_shape = create_mobilenet_generators(folder_path, FLAGS.batch_size, FLAGS.num_images, FLAGS.debug)
+	if FLAGS.is_recurrent:
+		train, valid, input_shape = create_recurrent_generators(folder_path, FLAGS.batch_size, FLAGS.num_images, FLAGS.debug)
+	else:
+		train, valid, input_shape = create_mobilenet_generators(folder_path, FLAGS.batch_size, FLAGS.num_images, FLAGS.debug)
+
 	train_steps_per_epoch, train_generator = train
 	valid_steps_per_epoch, valid_generator = valid
 
-	print("Creating model with input", input_shape)
+	print("Creating model with input", input_shape) 
 
 	if FLAGS.model_file:
 		model = load_model(full_path(FLAGS.model_file))
+	elif FLAGS.is_recurrent:
+		model = recurrent_net(input_shape, FLAGS.num_images, FLAGS.alpha)
 	else:
 		# model = create_optical_flow_model(input_shape, FLAGS.alpha)
 		# model = MobileNetSlim(input_shape, FLAGS.alpha)
