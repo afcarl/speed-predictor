@@ -180,7 +180,7 @@ def single_optical_flow_dense(old_image_gray, current_image_gray):
 	return rgb
 
 
-def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct=0.4):
+def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct=0.3):
 	train_files, train_labels = raw_train_data()
 	end = ((len(train_labels) // num_images - 1) * num_images)
 	train_results = []
@@ -193,77 +193,92 @@ def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct
 
 		if np.random.uniform() < valid_pct:
 			files = train_files[i:i+num_images]
-			train_images = preprocess_valid_images(map(img_from_file, files))
-			image = average_optical_flow_dense(list(train_images))
-			img_file_path = "{}/valid/frame_{}_{}.jpg".format(file_path, i, i+num_images)
-			cv2.imwrite(img_file_path, image)
-			valid_results.append((img_file_path, speed))
+			valid_images = list(preprocess_valid_images(map(img_from_file, files)))
+			flow = average_optical_flow_dense(valid_images)
+			flow_file_path = "{}/valid/flow_{}_{}.jpg".format(file_path, i, i+num_images)
+			cv2.imwrite(flow_file_path, flow)
+			img_file_paths = []
+			for img_i in range(len(valid_images)):
+				img_file_path = "{}/valid/frame_{}.jpg".format(file_path, i+img_i)
+				img_file_paths.append(img_file_path)
+				cv2.imwrite(img_file_path, valid_images[img_i])
+
+			row = [flow_file_path, speed] + img_file_paths
+			valid_results.append(row)	
 
 		else:
 			for j in range(num_augmentations):
-				image = average_optical_flow_dense(list(augment_images(map(img_from_file, train_files[i:i+num_images]))))
-				img_file_path = "{}/train/frame_{}_{}_aug_{}.jpg".format(file_path, i, i+num_images, j)
-				cv2.imwrite(img_file_path, image)
-				train_results.append((img_file_path, speed))
+				aug_imgs = list(augment_images(map(img_from_file, train_files[i:i+num_images])))
+				flow = average_optical_flow_dense(aug_imgs)
+				flow_file_path = "{}/train/flow_{}_{}_aug_{}.jpg".format(file_path, i, i+num_images, j)
+				cv2.imwrite(flow_file_path, flow)
+				aug_file_paths = []
+				for img_i in range(len(aug_imgs)):
+					aug_file_path = "{}/train/frame_{}_aug_{}.jpg".format(file_path, i+img_i, j)
+					aug_file_paths.append(aug_file_path)
+					cv2.imwrite(aug_file_path, aug_imgs[img_i])
 
-	pd.DataFrame(train_results, columns=["file_path", "speed"]).to_csv("{}/train/files_labels.csv".format(file_path))
-	pd.DataFrame(valid_results, columns=["file_path", "speed"]).to_csv("{}/valid/files_labels.csv".format(file_path))
+				row = [flow_file_path, speed] + aug_file_paths
+				train_results.append(row)
+
+	columns = ["flow_path", "speed"] + ["frame_{}".format(i) for i in range(num_images)]
+	pd.DataFrame(train_results, columns=columns).to_csv("{}/train/files_labels.csv".format(file_path))
+	pd.DataFrame(valid_results, columns=columns).to_csv("{}/valid/files_labels.csv".format(file_path))
 
 
-def create_mobilenet_generators(folder_path, batch_size, is_debug):
-	train = create_mobilenet_generator("{}/train".format(folder_path), batch_size, is_debug)
-	valid = create_mobilenet_generator("{}/valid".format(folder_path), batch_size, is_debug)
+def create_mobilenet_generators(folder_path, batch_size, num_images, is_debug):
+	train = create_mobilenet_generator("{}/train".format(folder_path), batch_size, num_images, is_debug)
+	valid = create_mobilenet_generator("{}/valid".format(folder_path), batch_size, num_images, is_debug)
 
-	return (train, valid, image_shape(folder_path, mobilenet_preprocessor))
+	return (train, valid, image_shape(valid[1]))
 
-def image_shape(folder_path, preprocessor):
-	image_file = pd.read_csv("{}/train/files_labels.csv".format(folder_path))['file_path'][0]
-	image = img_from_file(image_file)
-	return list(list(preprocessor([image], [0.]))[0])[0].shape
+def image_shape(generator):
+	val = generator.next()[0]
+	return val[list(val.keys())[0]].shape[1:]
 
-def create_mobilenet_generator(folder_path, batch_size, is_debug):
+def create_mobilenet_generator(folder_path, batch_size, num_images, is_debug):
 	# Load csv and shuffle
 	df = pd.read_csv("{}/files_labels.csv".format(folder_path)).sample(frac=1).reset_index(drop=True)
-	files = df['file_path']
-	labels = df['speed']
 	if is_debug:
-		end = min(len(files), 1024)
-		files = files[0:end]
-		labels = labels[0:end]
-	g = ImageFileGenerator(batch_size, files, labels, mobilenet_preprocessor)
-	return (len(files) // batch_size , g)
+		end = min(len(df), 1024)
+		df = df[0:end]
 
-def mobilenet_preprocessor(images, labels):
+	flow_paths = df['flow_path']
+	labels = df['speed']
+	img_files = df[['frame_{}'.format(i) for i in range(num_images)]]
+	
+	g = ImageFileGenerator(batch_size, flow_paths, labels, img_files, mobilenet_preprocessor)
+	return (len(flow_paths) // batch_size , g)
+
+def mobilenet_preprocessor(images):
 	map_images = map(mobilenet_preprocess_input, map(as_(np.float32), images))
-	return (np.array(list(map_images)), labels)
+	return np.array(list(map_images))
 
 def as_(dtype):
 	return lambda image: np.array(image, dtype=dtype)
 	
 
 class ImageFileGenerator():
-	def __init__(self, batch_size, image_files, labels, preprocessor):
+	def __init__(self, batch_size, flow_files, labels, image_files, preprocessor):
 		self.batch_size = batch_size
-		self.image_files = image_files
+		self.flow_files = flow_files
 		self.labels = labels
-		self.index = 0
+		self.image_files = image_files
 		self.preprocessor = preprocessor
-
-	def _increment_index(self, end):
-		if end == len(self.labels):
-			self.index = 0
-		else:
-			self.index += self.batch_size
 
 	def __next__(self):
 		return self.next()
 
 	def next(self):
-		start = self.index
-		end = min(self.index+self.batch_size, len(self.labels))
-		batch_images = map(img_from_file, self.image_files[start:end])
-		batch_labels = self.labels[start:end]
+		idxs = np.random.randint(0, len(self.labels), self.batch_size)
+		batch_flow_images = self.preprocessor(map(img_from_file, self.flow_files[idxs]))
+		batch_labels = self.labels[idxs]
 
-		self._increment_index(end)
+		result = {}
 
-		return self.preprocessor(batch_images, batch_labels) 
+		for key in self.image_files.columns.values:
+			images = map(img_from_file,self.image_files[key][idxs])
+			result[key] = np.concatenate([self.preprocessor(images), batch_flow_images], axis=3)
+
+		return (result, batch_labels)
+

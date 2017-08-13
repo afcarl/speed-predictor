@@ -12,7 +12,7 @@ from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
 from keras import metrics
 import numpy as np
 
-from mach.model import create_optical_flow_model, MobileNetSlim
+from mach.model import create_optical_flow_model, MobileNetSlim, create_mobilenet_plus_model
 from mach.util import isAWS, upload_s3, stop_instance, full_path
 from mach.data import create_mobilenet_generators
 
@@ -41,6 +41,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_epochs', 1, 'Number of training examples.')
 flags.DEFINE_integer('model_file', None, 'If defined loaded a saved model and continue training.')
 flags.DEFINE_integer('batch_size', 32, 'The batch size for the generator')
+flags.DEFINE_integer('num_images', 2, 'The number of images used to make the opticlal flow.')
 flags.DEFINE_string('folder', 'optical_flow_2_augmented_5', 'The folder inside the data folder where the images and labels are.')
 flags.DEFINE_float('alpha', 0.75, 'The alpha param for MobileNet.')
 flags.DEFINE_boolean('debug', False, 'If this is for debugging the model/training process or not.')
@@ -55,7 +56,7 @@ def main(_):
 
 	folder_path = full_path("data/{}".format(FLAGS.folder))
 
-	train, valid, input_shape = create_mobilenet_generators(folder_path, FLAGS.batch_size, FLAGS.debug)
+	train, valid, input_shape = create_mobilenet_generators(folder_path, FLAGS.batch_size, FLAGS.num_images, FLAGS.debug)
 	train_steps_per_epoch, train_generator = train
 	valid_steps_per_epoch, valid_generator = valid
 
@@ -65,7 +66,8 @@ def main(_):
 		model = load_model(full_path(FLAGS.model_file))
 	else:
 		# model = create_optical_flow_model(input_shape, FLAGS.alpha)
-		model = MobileNetSlim(input_shape, FLAGS.alpha)
+		# model = MobileNetSlim(input_shape, FLAGS.alpha)
+		model = create_mobilenet_plus_model(input_shape, FLAGS.num_images, FLAGS.alpha)
 
 	if FLAGS.debug:
 		print(model.summary())
@@ -80,7 +82,7 @@ def main(_):
 	print("Compiling model.")
 	model.compile(
 		optimizer=Adam(lr=0.0005),
-		loss={'mobilenet_slim_output': 'mean_squared_error'},
+		loss={'mobilenet_plus_output': 'mean_squared_error'},
 		metrics=['mean_absolute_error'])
 
 	print("Starting model train process.")
