@@ -78,7 +78,7 @@ def main(_):
 
 	print("Compiling model.")
 	model.compile(
-		optimizer=Adam(),
+		optimizer=Adam(lr=0.01),
 		loss={'speed': 'mean_squared_error'},
 		metrics=['accuracy'])
 
