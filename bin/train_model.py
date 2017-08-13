@@ -39,6 +39,7 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 flags.DEFINE_integer('max_epochs', 1, 'Number of training examples.')
+flags.DEFINE_integer('model_file', None, 'If defined loaded a saved model and continue training.')
 flags.DEFINE_integer('batch_size', 32, 'The batch size for the generator')
 flags.DEFINE_string('folder', 'optical_flow_2_augmented_5', 'The folder inside the data folder where the images and labels are.')
 flags.DEFINE_float('alpha', 0.75, 'The alpha param for MobileNet.')
@@ -53,14 +54,17 @@ def main(_):
 	print("Training model named", config.model_name())
 
 	folder_path = full_path("data/{}".format(FLAGS.folder))
-	
+
 	train, valid, input_shape = create_mobilenet_generators(folder_path, FLAGS.batch_size, FLAGS.debug)
 	train_steps_per_epoch, train_generator = train
 	valid_steps_per_epoch, valid_generator = valid
 
 	print("Creating model with input", input_shape)
 
-	model = create_optical_flow_model(input_shape, FLAGS.alpha)
+	if FLAGS.model_file:
+		model = load_model(full_path(FLAGS.model_file))
+	else:
+		model = create_optical_flow_model(input_shape, FLAGS.alpha)
 
 	if FLAGS.debug:
 		print(model.summary())
@@ -75,9 +79,8 @@ def main(_):
 	print("Compiling model.")
 	model.compile(
 		optimizer=Adam(),
-		loss={
-		'speed': 'mean_squared_error'
-		})
+		loss={'speed': 'mean_squared_error'},
+		metrics=['accuracy'])
 
 	print("Starting model train process.")
 	model.fit_generator(train_generator,
