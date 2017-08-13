@@ -80,7 +80,7 @@ def main(_):
 	model.compile(
 		optimizer=Adam(lr=0.01),
 		loss={'speed': 'mean_squared_error'},
-		metrics=['accuracy'])
+		metrics=['mean_squared_error'])
 
 	print("Starting model train process.")
 	model.fit_generator(train_generator,

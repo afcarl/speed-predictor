@@ -9,9 +9,9 @@ from keras import backend as K
 
 def create_optical_flow_model(input_shape, alpha):
 	input = Input(shape=input_shape)
-	encoder = MobileNet(input_tensor=input, alpha=alpha, include_top=False, weights=None, pooling='avg')
+	encoder = MobileNet(input_tensor=input, alpha=alpha, include_top=False, pooling='avg')
 	net = Dropout(0.5)(encoder.output)
 	speed = Dense(1, name='speed')(net)
 
-	model = Model(inputs=input, outputs=speed, name='optical_flow_model')
+	model = Model(inputs=input, outputs=speed, name='optical_flow_model_mobilenet')
 	return model
