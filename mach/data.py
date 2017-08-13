@@ -172,8 +172,8 @@ def single_optical_flow_dense(old_image_gray, current_image_gray):
 	hsv_flow[...,0] = ang*180/np.pi/2
 	# value corresponds to magnitude
 	hsv_flow[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
-	# convert HSV to int32's
-	hsv_flow = np.asarray(hsv_flow, dtype= np.float32)
+	# convert HSV to uint8
+	hsv_flow = np.asarray(hsv_flow, dtype=np.uint8)
 	# convert to RGB
 	rgb = cv2.cvtColor(hsv_flow,cv2.COLOR_HSV2RGB)
 	
