@@ -81,7 +81,7 @@ def main(_):
 
 	print("Compiling model.")
 	model.compile(
-		optimizer=Adam(lr=0.0005),
+		optimizer=Adam(lr=0.001),
 		loss={'mobilenet_plus_output': 'mean_squared_error'},
 		metrics=['mean_absolute_error'])
 
