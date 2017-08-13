@@ -24,7 +24,7 @@ class Config():
 		return full_path("data/optical_flow_{}_augmented_{}".format(self.num_images, self.num_augmentations))
 
 flags.DEFINE_integer('num_images', 2, 'The number of images in an optical flow batch')
-flags.DEFINE_boolean('num_augmentations', 5, 'The number of times a set of image should be augmented.')
+flags.DEFINE_integer('num_augmentations', 5, 'The number of times a set of image should be augmented.')
 flags.DEFINE_boolean('is_test', False, 'If this is for the test video or not.')
 
 def main(_):
