@@ -80,9 +80,9 @@ def main(_):
 	else:
 		# model = create_optical_flow_model(input_shape, FLAGS.alpha)
 		# model = MobileNetSlim(input_shape, FLAGS.alpha)
-		model = create_mobilenet_plus_model(input_shape, FLAGS.num_images, FLAGS.alpha)
+		# model = create_mobilenet_plus_model(input_shape, FLAGS.num_images, FLAGS.alpha)
 		# model = create_optical_flow_model(input_shape, FLAGS.num_images, FLAGS.alpha)
-		# model = create_simple_optical_flow_model(input_shape)
+		model = create_simple_optical_flow_model(input_shape)
 
 	if FLAGS.debug:
 		print(model.summary())
