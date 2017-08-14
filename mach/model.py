@@ -72,8 +72,9 @@ def create_mobilenet_plus_model(input_shape, num_images, alpha, dropout=0.5):
 	x = Dense(128, kernel_regularizer=regularizers.l2(0.01))(x)
 	x = BatchNormalization()(x)
 	x = Activation('relu')(x)
-	x = Dropout(dropout)(x)
 	x = Dense(32, kernel_regularizer=regularizers.l2(0.01))(x)
+	x = BatchNormalization()(x)
+	x = Activation('relu')(x)
 	output = Dense(1, name='speed')(x)
 
 	model = Model(inputs=encoder_inputs, outputs=output, name='optical_flow_model_mobilenet')
