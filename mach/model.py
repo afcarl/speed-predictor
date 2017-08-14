@@ -20,8 +20,9 @@ def recurrent_net(input_shape, sequence_size, alpha):
 	encoded_video = LSTM(128, activation='relu')(encoded_image_sequence)
 
 	x = BatchNormalization()(encoded_video)
-	x = Dropout(0.7)(x)
+	x = Dropout(0.5)(x)
 	x = Dense(32)(x)
+	x = BatchNormalization()(x)
 	x = Activation('relu')(x)
 	output = Dense(1, name='speed')(x)
 
@@ -142,11 +143,12 @@ def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, drop
 
 	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, strides=(2, 2), block_id=4)
 	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
-	x = Dropout(0.7)(x)
+	# x = Dropout(0.7)(x)
 
 	x = GlobalAveragePooling2D()(x)
 	x = BatchNormalization()(x)
 	x = Dropout(dropout)(x)
+	return x
 	x = Dense(32)(x)
 	x = BatchNormalization()(x)
 	x = Activation('relu')(x)
