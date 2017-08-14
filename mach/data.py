@@ -371,10 +371,10 @@ class ImageFileGenerator():
 
 		result = {'flow': batch_flow_images}
 
-		# for key in self.image_files.columns.values:
-		# 	images = map(img_from_file,self.image_files[key][idxs])
-		# 	# result[key] = np.concatenate([self.preprocessor(images), batch_flow_images], axis=3)
-		# 	result[key] = self.preprocessor(images)
+		for key in self.image_files.columns.values:
+			images = map(img_from_file,self.image_files[key][idxs])
+			# result[key] = np.concatenate([self.preprocessor(images), batch_flow_images], axis=3)
+			result[key] = self.preprocessor(images)
 
 		return (result, batch_labels)
 
