@@ -152,5 +152,5 @@ def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, drop
 	x = Activation('relu')(x)
 	output = Dense(1, name='speed')(x)
 
-	model = Model(inputs=input, outputs=x, name='optical_flow_encoder')
+	model = Model(inputs=input, outputs=output, name='optical_flow_encoder')
 	return model
