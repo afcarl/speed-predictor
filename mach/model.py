@@ -101,21 +101,52 @@ def create_mobilenet_model(input_shape, alpha):
 	model = Model(inputs=input, outputs=encoder.output, name='mobilenet_model')
 	return model
 
+def create_simple_optical_flow_model(input_shape):
+	input = Input(shape=input_shape, name='flow')
+	x = Conv2D(24, (5,5), strides=(2,2))(input)
+	x = BatchNormalization()(x)
+	x = Activation('elu')(x)
+	x = Conv2D(36, (5,5), strides=(2,2))(x)
+	x = BatchNormalization()(x)
+	x = Activation('elu')(x)
+	x = Conv2D(48, (5,5), strides=(2,2))(x)
+	x = BatchNormalization()(x)
+	x = Activation('elu')(x)
+	x = Dropout(0.5)(x)
+	x = Conv2D(64, (3,3), padding='same')(x)
+	x = BatchNormalization()(x)
+	x = Activation('elu')(x)
+	x = Conv2D(128, (3,3), padding='same')(x)
+	x = BatchNormalization()(x)
+	x = Activation('elu')(x)
+	x = GlobalAveragePooling2D()(x)
+	x = Dense(128)(x)
+	x = BatchNormalization()(x)
+	x = Activation('elu')(x)
+	x = Dense(64)(x)
+	x = BatchNormalization()(x)
+	x = Activation('elu')(x)
+	x = Dense(1)(x)
+	model = Model(inputs=input, outputs=x, name='mobilenet_model')
+	return model
 
 def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, dropout=0.7):
 	input = Input(shape=input_shape, name='flow')
 
 	x = _conv_block(input, 32, alpha, strides=(2, 2))
-	x = _depthwise_conv_block(x, 64, alpha, depth_multiplier, strides=(2, 2), block_id=1)
+	x = _depthwise_conv_block(x, 64, alpha, depth_multiplier, block_id=1)
 
-	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, strides=(2, 2), block_id=2)
+	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, block_id=2)
 	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, strides=(2, 2), block_id=3)
 
-	# x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, strides=(2, 2), block_id=4)
-	# x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
+	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, strides=(2, 2), block_id=4)
+	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
 
 	x = GlobalAveragePooling2D()(x)
 	x = Dropout(dropout)(x)
 
 	model = Model(inputs=input, outputs=x, name='optical_flow_encoder')
 	return model
+
+m=create_simple_optical_flow_model((160,320,3))
+print(m.summary())

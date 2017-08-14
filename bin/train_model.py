@@ -12,7 +12,7 @@ from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
 from keras import metrics
 import numpy as np
 
-from mach.model import create_optical_flow_model, MobileNetSlim, create_mobilenet_plus_model, recurrent_net
+from mach.model import create_optical_flow_model, MobileNetSlim, create_mobilenet_plus_model, recurrent_net, create_simple_optical_flow_model
 from mach.util import isAWS, upload_s3, stop_instance, full_path
 from mach.data import create_mobilenet_generators, create_recurrent_generators
 
@@ -78,7 +78,8 @@ def main(_):
 	else:
 		# model = create_optical_flow_model(input_shape, FLAGS.alpha)
 		# model = MobileNetSlim(input_shape, FLAGS.alpha)
-		model = create_optical_flow_model(input_shape, FLAGS.num_images, FLAGS.alpha)
+		# model = create_optical_flow_model(input_shape, FLAGS.num_images, FLAGS.alpha)
+		model = create_simple_optical_flow_model(input_shape)
 
 	if FLAGS.debug:
 		print(model.summary())
