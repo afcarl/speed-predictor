@@ -53,7 +53,7 @@ def recurrent_net(input_shape, sequence_size, alpha):
 
 def create_mobilenet_plus_model(input_shape, num_images, alpha, dropout=0.5):
 	encoder_input = Input(shape=input_shape)
-	encoder = MobileNet(input_tensor=encoder_input, alpha=alpha, include_top=False, pooling=None, weights=None)
+	encoder = MobileNet(input_tensor=encoder_input, alpha=alpha, include_top=False, pooling=None, weights='imagenet')
 	encoder_model = Model(inputs=encoder_input, outputs=encoder.output, name='mobilenet_shared')
 
 	encoder_outputs = []
@@ -82,7 +82,7 @@ def create_mobilenet_plus_model(input_shape, num_images, alpha, dropout=0.5):
 
 def create_optical_flow_model(input_shape, num_images, alpha):
 	encoder_input = Input(shape=input_shape)
-	encoder = MobileNet(input_tensor=encoder_input, alpha=alpha, include_top=False, pooling=None, weights=None)
+	encoder = MobileNet(input_tensor=encoder_input, alpha=alpha, include_top=False, pooling=None, weights='imagenet')
 	encoder_model = Model(inputs=encoder_input, outputs=encoder.output, name='mobilenet_shared')
 
 	for layer in encoder.layers:
