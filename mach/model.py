@@ -126,7 +126,7 @@ def create_simple_optical_flow_model(input_shape):
 	x = Dense(64)(x)
 	x = BatchNormalization()(x)
 	x = Activation('elu')(x)
-	x = Dense(1)(x)
+	x = Dense(1, name='speed')(x)
 	model = Model(inputs=input, outputs=x, name='mobilenet_model')
 	return model
 
@@ -147,6 +147,3 @@ def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, drop
 
 	model = Model(inputs=input, outputs=x, name='optical_flow_encoder')
 	return model
-
-m=create_simple_optical_flow_model((160,320,3))
-print(m.summary())
