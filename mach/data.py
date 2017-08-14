@@ -190,7 +190,7 @@ def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct
 	print("Processing a total of {} images.".format(len(train_labels)))
 
 	for i in range(0, end, num_images):
-		speed = train_labels[i]
+		speed = train_labels[i+num_images-1]
 		if i % 100 == 0: print("Finished with {} original images.".format(i))
 
 		if np.random.uniform() < valid_pct:
