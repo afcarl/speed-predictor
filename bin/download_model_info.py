@@ -14,16 +14,20 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 class Config():
-	def __init__(self, folder, max_epochs, batch_size, min_delta, patience, alpha):
+	def __init__(self, folder, max_epochs, batch_size, min_delta, patience, alpha, is_recurrent):
 		self.folder = folder
 		self.max_epochs = max_epochs
 		self.batch_size = batch_size
 		self.min_delta = int(min_delta*1000)
 		self.patience = patience
 		self.alpha = int(alpha*100)
+		if is_recurrent:
+			self.is_recurrent = "recurrent"
+		else:
+			self.is_recurrent = "non_recurrent"
 
 	def model_name(self):
-		return "{}_{}_{}_{}_{}_{}".format(self.folder, self.max_epochs, self.batch_size, self.min_delta, self.patience, self.alpha)
+		return "{}_{}_{}_{}_{}_{}_{}".format(self.folder, self.max_epochs, self.batch_size, self.min_delta, self.patience, self.alpha, self.is_recurrent)
 
 	def model_checkpoint(self):
 		return "{}.ckpt".format(self.model_name())
@@ -37,9 +41,10 @@ flags.DEFINE_string('folder', 'optical_flow_2_augmented_5', 'The folder inside t
 flags.DEFINE_float('alpha', 0.75, 'The alpha param for MobileNet.')
 flags.DEFINE_float('min_delta', 0.005, 'Early stopping minimum change value.')
 flags.DEFINE_integer('patience', 20, 'Early stopping epochs patience to wait before stopping.')
+flags.DEFINE_boolean('is_recurrent', False, 'If this is processing for a recurrent model or not.')
 
 def main(_):
-	config = Config(FLAGS.folder, FLAGS.max_epochs, FLAGS.batch_size, FLAGS.min_delta, FLAGS.patience, FLAGS.alpha)
+	config = Config(FLAGS.folder, FLAGS.max_epochs, FLAGS.batch_size, FLAGS.min_delta, FLAGS.patience, FLAGS.alpha, FLAGS.is_recurrent)
 	print("Downloading model info for model {}.".format(config.model_name()))
 
 	download_s3(config.model_checkpoint())

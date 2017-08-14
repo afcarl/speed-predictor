@@ -12,9 +12,9 @@ from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
 from keras import metrics
 import numpy as np
 
-from mach.model import create_optical_flow_model, MobileNetSlim, create_mobilenet_plus_model, recurrent_net, create_simple_optical_flow_model
+from mach.model import create_optical_flow_model, MobileNetSlim, create_mobilenet_plus_model, recurrent_net, create_simple_optical_flow_model, recurrent_mobilenet
 from mach.util import isAWS, upload_s3, stop_instance, full_path
-from mach.data import create_mobilenet_generators, create_recurrent_generators
+from mach.data import create_mobilenet_generators, create_recurrent_generators, create_orig_recurrent_generator
 
 class Config():
 	def __init__(self, folder, max_epochs, batch_size, min_delta, patience, alpha, is_recurrent):
@@ -62,7 +62,8 @@ def main(_):
 	folder_path = full_path("data/{}".format(FLAGS.folder))
 
 	if FLAGS.is_recurrent:
-		train, valid, input_shape = create_recurrent_generators(folder_path, FLAGS.batch_size, FLAGS.num_images, FLAGS.debug)
+		# train, valid, input_shape = create_recurrent_generators(folder_path, FLAGS.batch_size, FLAGS.num_images, FLAGS.debug)
+		train, valid, input_shape = create_orig_recurrent_generator(FLAGS.batch_size, FLAGS.num_images, FLAGS.debug)
 	else:
 		train, valid, input_shape = create_mobilenet_generators(folder_path, FLAGS.batch_size, FLAGS.num_images, FLAGS.debug)
 
@@ -74,7 +75,8 @@ def main(_):
 	if FLAGS.model_file:
 		model = load_model(full_path(FLAGS.model_file))
 	elif FLAGS.is_recurrent:
-		model = recurrent_net(input_shape, FLAGS.num_images, FLAGS.alpha)
+		# model = recurrent_net(input_shape, FLAGS.num_images, FLAGS.alpha)
+		model = recurrent_mobilenet(input_shape, FLAGS.num_images, FLAGS.alpha)
 	else:
 		# model = create_optical_flow_model(input_shape, FLAGS.alpha)
 		model = MobileNetSlim(input_shape, FLAGS.alpha)

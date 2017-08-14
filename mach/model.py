@@ -12,6 +12,28 @@ from keras import backend as K
 
 from keras.layers.recurrent import LSTM
 
+def recurrent_mobilenet(input_shape, sequence_size, alpha):
+	encoder_input = Input(shape=input_shape)
+	encoder = MobileNet(input_tensor=encoder_input, alpha=alpha, include_top=False, pooling='avg', weights='imagenet')
+	encoder_model = Model(inputs=encoder_input, outputs=encoder.output, name='mobilenet_shared')
+
+	for layer in encoder.layers:
+		layer.trainable = False
+
+	sequence_input = Input(shape=[sequence_size] + list(input_shape))
+	encoded_image_sequence = TimeDistributed(encoder_model)(sequence_input)
+	encoded_video = LSTM(128)(encoded_image_sequence)
+
+	x = BatchNormalization()(encoded_video)
+	x = Dropout(0.4)(x)
+	x = Dense(32)(x)
+	x = BatchNormalization()(x)
+	x = Activation('relu')(x)
+	output = Dense(1, name='speed')(x)
+
+	model = Model(inputs=sequence_input, outputs=output, name='optical_flow_recurrent')
+	return model
+
 def recurrent_net(input_shape, sequence_size, alpha):
 	sequence_input = Input(shape=[sequence_size] + list(input_shape))
 	encoder = MobileNetSlim(input_shape, alpha)
@@ -143,14 +165,16 @@ def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, drop
 
 	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, strides=(2, 2), block_id=4)
 	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
-	# x = Dropout(0.7)(x)
+	x = Dropout(0.9)(x)
+
+	x = _depthwise_conv_block(x, 512, alpha, depth_multiplier, strides=(2, 2), block_id=6)
+	x = _depthwise_conv_block(x, 512, alpha, depth_multiplier, block_id=7)
+	x = Dropout(0.9)(x)
 
 	x = GlobalAveragePooling2D()(x)
 	x = BatchNormalization()(x)
 	x = Dropout(dropout)(x)
-	model = Model(inputs=input, outputs=x, name='optical_flow_encoder')
-	return model
-	x = Dense(32)(x)
+	x = Dense(64)(x)
 	x = BatchNormalization()(x)
 	x = Activation('relu')(x)
 	output = Dense(1, name='speed')(x)

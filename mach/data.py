@@ -20,7 +20,7 @@ def raw_train_data():
 
 def read_txt_file(file_path):
 	with open(full_path(file_path), "r") as f:
-		return list(map(float, f))
+		return np.array(list(map(float, f)))
 
 def img_from_file(file):
   img = cv2.imread(file)
@@ -128,11 +128,11 @@ def average_optical_flow_dense(images):
 	for i in range(len(gray_images) - 1):
 		old = gray_images[i]
 		new = gray_images[i+1]
-		result.append(single_optical_flow_dense(old, new))
+		result.append(single_optical_flow_dense(old, new, images[i+1]))
 
 	return np.mean(result, axis=0)
 
-def single_optical_flow_dense(old_image_gray, current_image_gray):
+def single_optical_flow_dense(old_image_gray, current_image_gray, current_image):
 	"""
 	input: old_image_gray, current_image_gray (gray images)
 	* calculates optical flow magnitude and angle and places it into HSV image
@@ -143,16 +143,17 @@ def single_optical_flow_dense(old_image_gray, current_image_gray):
   # set saturation
 	out_shape = list(old_image_gray.shape) + [3]
 	hsv_flow = np.zeros(out_shape)
-	hsv_flow[...,1] = 255
+	hsv_flow[:,:,1] = cv2.cvtColor(current_image, cv2.COLOR_RGB2HSV)[:,:,1]
+	# hsv_flow[...,1] = 255
 
 	# Flow Parameters
 	# flow = None
 	pyr_scale = 0.5
 	levels = 1
-	winsize = 12
+	winsize = 15
 	iterations = 2
 	poly_n = 5
-	poly_sigma = 1.2
+	poly_sigma = 1.3
 	extra = 0
 	# obtain dense optical flow paramters
 	# https://github.com/npinto/opencv/blob/master/samples/python2/opt_flow.py
@@ -247,6 +248,44 @@ def create_optical_flow_data_recurrent(file_path):
 
 	columns = ["flow_path", "speed"]
 	pd.DataFrame(results, columns=columns).to_csv("{}/files_labels.csv".format(file_path))
+
+
+def create_orig_recurrent_generator(batch_size, sequence_size, is_debug):
+	image_files, labels = raw_train_data()
+	image_files = np.array(image_files)
+	if is_debug:
+		end = min(len(image_files), 1024)
+		image_files = image_files[0:end]
+		labels = labels[0:end]
+
+	recurrent_idxs = np.array([i for i in range(0, len(image_files)-sequence_size, sequence_size // 2)])
+	train_idxs, valid_idxs, _, _ = train_test_split(recurrent_idxs, recurrent_idxs, test_size=0.30, random_state=42)
+
+	train = (len(train_idxs) // batch_size, OrigRecurrentGenerator(image_files, labels, train_idxs, batch_size, sequence_size))
+	valid = (len(valid_idxs) // batch_size, OrigRecurrentGenerator(image_files, labels, valid_idxs, batch_size, sequence_size))
+	return train, valid, train[1].next()[0].shape[2:]
+
+class OrigRecurrentGenerator():
+	def __init__(self, image_files, labels, idxs, batch_size, sequence_size):
+		self.image_files = image_files
+		self.labels = labels
+		self.idxs = idxs
+		self.batch_size = batch_size
+		self.sequence_size = sequence_size
+
+	def __next__(self):
+		return self.next()
+
+	def next(self):
+		start_idxs = self.idxs[np.random.randint(0, len(self.idxs), self.batch_size)]
+		labels = self.labels[start_idxs + self.sequence_size - 1]
+		images = np.array([orig_recurrent_sequence(i, self.image_files, self.sequence_size) for i in start_idxs])
+
+		return (images, labels)
+
+def orig_recurrent_sequence(idx, image_files, sequence_size):
+	images = preprocess_valid_images(map(img_from_file, image_files[idx:idx+sequence_size]))
+	return mobilenet_preprocessor(images)
 
 
 def create_recurrent_generators(folder_path, batch_size, sequence_size, is_debug):
