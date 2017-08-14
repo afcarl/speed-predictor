@@ -79,7 +79,8 @@ def main(_):
 		model = recurrent_mobilenet(input_shape, FLAGS.num_images, FLAGS.alpha)
 	else:
 		# model = create_optical_flow_model(input_shape, FLAGS.alpha)
-		model = MobileNetSlim(input_shape, FLAGS.alpha)
+		# model = MobileNetSlim(input_shape, FLAGS.alpha)
+		model = create_mobilenet_plus_model(input_shape, FLAGS.num_images, FLAGS.alpha)
 		# model = create_optical_flow_model(input_shape, FLAGS.num_images, FLAGS.alpha)
 		# model = create_simple_optical_flow_model(input_shape)
 
@@ -95,7 +96,7 @@ def main(_):
 
 	print("Compiling model.")
 	model.compile(
-		optimizer= Adam(lr=0.001, clipnorm=2.),
+		optimizer= Adam(lr=0.0005, clipnorm=2.),
 		loss={'speed': 'mean_squared_error'},
 		metrics=['mean_absolute_error'])
 

@@ -66,7 +66,7 @@ def create_mobilenet_plus_model(input_shape, num_images, alpha, dropout=0.5):
 	x = concatenate(encoder_outputs)
 	x = BatchNormalization()(x)
 	x = Activation('relu')(x)
-	x = Dropout(0.7)(x)
+	x = Dropout(0.5)(x)
 	x = Conv2D(256, (1,1), padding='same', kernel_regularizer=regularizers.l2(0.01))(x)
 	x = GlobalAveragePooling2D()(x)
 	x = Dense(128, kernel_regularizer=regularizers.l2(0.01))(x)
