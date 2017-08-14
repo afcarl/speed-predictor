@@ -17,7 +17,7 @@ def recurrent_net(input_shape, sequence_size, alpha):
 	encoder = MobileNetSlim(input_shape, alpha)
 	
 	encoded_image_sequence = TimeDistributed(encoder)(sequence_input)
-	encoded_video = LSTM(128, activation='relu')(encoded_image_sequence)
+	encoded_video = LSTM(128)(encoded_image_sequence)
 
 	x = BatchNormalization()(encoded_video)
 	x = Dropout(0.5)(x)
@@ -148,7 +148,8 @@ def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, drop
 	x = GlobalAveragePooling2D()(x)
 	x = BatchNormalization()(x)
 	x = Dropout(dropout)(x)
-	return x
+	model = Model(inputs=input, outputs=x, name='optical_flow_encoder')
+	return model
 	x = Dense(32)(x)
 	x = BatchNormalization()(x)
 	x = Activation('relu')(x)
