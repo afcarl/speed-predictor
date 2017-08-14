@@ -7,7 +7,7 @@ project_path, x = os.path.split(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append(project_path)
 
 import tensorflow as tf
-from keras.optimizers import Adam
+from keras.optimizers import Adam, Adadelta
 from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
 from keras import metrics
 import numpy as np
@@ -92,7 +92,7 @@ def main(_):
 
 	print("Compiling model.")
 	model.compile(
-		optimizer=Adam(lr=0.001),
+		optimizer=Adadelta(), #Adam(lr=0.001),
 		loss={'speed': 'mean_squared_error'},
 		metrics=['mean_absolute_error'])
 

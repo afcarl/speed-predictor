@@ -111,8 +111,8 @@ def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, drop
 	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, strides=(2, 2), block_id=2)
 	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, strides=(2, 2), block_id=3)
 
-	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, strides=(2, 2), block_id=4)
-	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
+	# x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, strides=(2, 2), block_id=4)
+	# x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
 
 	x = GlobalAveragePooling2D()(x)
 	x = Dropout(dropout)(x)
