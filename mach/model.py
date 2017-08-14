@@ -131,20 +131,26 @@ def create_simple_optical_flow_model(input_shape):
 	model = Model(inputs=input, outputs=x, name='mobilenet_model')
 	return model
 
-def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, dropout=0.7):
+def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, dropout=0.5):
 	input = Input(shape=input_shape, name='flow')
 
 	x = _conv_block(input, 32, alpha, strides=(2, 2))
 	x = _depthwise_conv_block(x, 64, alpha, depth_multiplier, block_id=1)
 
-	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, block_id=2)
-	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, strides=(2, 2), block_id=3)
+	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, strides=(2, 2), block_id=2)
+	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, block_id=3)
 
 	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, strides=(2, 2), block_id=4)
 	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
+	x = Dropout(0.7)(x)
 
 	x = GlobalAveragePooling2D()(x)
+	x = BatchNormalization()(x)
 	x = Dropout(dropout)(x)
+	x = Dense(32)(x)
+	x = BatchNormalization()(x)
+	x = Activation('relu')(x)
+	output = Dense(1, name='speed')(x)
 
 	model = Model(inputs=input, outputs=x, name='optical_flow_encoder')
 	return model
