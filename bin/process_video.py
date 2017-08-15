@@ -32,7 +32,7 @@ def main(_):
 
 	print("Preparing to process", full_video_file)
 	for i, image in enumerate(vid):
-	  file_out_path = "{}/frame_{}.jpg".format(image_folder_path, i)
+	  file_out_path = "{}/frame_{}.png".format(image_folder_path, i)
 	  cv2.imwrite(file_out_path, cv2.cvtColor(image, cv2.COLOR_BGR2RGB)) # save frame as JPEG file
 	  
 	  if i % 100 == 0:

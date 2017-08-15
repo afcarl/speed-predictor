@@ -11,10 +11,10 @@ from mach.util import full_path
 
 
 def raw_train_data():
-	image_path = full_path("data/orig/train/*.jpg")
+	image_path = full_path("data/orig/train/*.png")
 	num_images = len(glob.glob(image_path))
 	# glob does not return image files in correct order!!!!!
-	image_files = [full_path("data/orig/train/frame_{}.jpg".format(i)) for i in range(num_images)]
+	image_files = [full_path("data/orig/train/frame_{}.png".format(i)) for i in range(num_images)]
 	label_path = "video_data/train.txt"
 	train_labels = read_txt_file(label_path)[0:num_images]
 
@@ -32,13 +32,13 @@ def img_from_file(file):
 CROP_SIZE = (134,330,32,608)
 IMAGE_SIZE = (288, 98) # divisable by 32 for MobileNet
 
-def preprocess_valid_images(images):
-	fn = lambda i: preprocess_valid_image(i, CROP_SIZE, IMAGE_SIZE)
+def crop_resize_images(images):
+	fn = lambda i: crop_resize_image(i, CROP_SIZE, IMAGE_SIZE)
 	return map(fn, images)
 
-def preprocess_valid_image(image, crop_size, image_size):	
+def crop_resize_image(image, crop_size, image_size):	
 	image = crop_image(image,crop_size)
-	return cv2.resize(image, image_size)
+	return cv2.resize(image, image_size, interpolation=cv2.INTER_NEAREST)
 
 # augment a group of images with the same values
 def augment_images(images):
@@ -64,16 +64,14 @@ def augment_images(images):
 	scale_y1 = np.random.uniform(scale_y1_min, scale_y1_max)
 	scale_y2 = np.random.uniform(scale_y2_min, scale_y2_max)
 
-	fn = lambda image: augment_image(image, CROP_SIZE, IMAGE_SIZE, brightness, translation_x, translation_y, scale_x1, scale_x2, scale_y1, scale_y2)
+	fn = lambda image: augment_image(image, brightness, translation_x, translation_y, scale_x1, scale_x2, scale_y1, scale_y2)
 
 	return list(map(fn, images))
 
-def augment_image(image, crop_size, image_size, brightness, translation_x, translation_y, scale_x1, scale_x2, scale_y1, scale_y2):
-	image = crop_image(image,crop_size)
+def augment_image(image, brightness, translation_x, translation_y, scale_x1, scale_x2, scale_y1, scale_y2):
 	image = augment_image_brightness(image, brightness)
 	image = translate_image(image, translation_x, translation_y)
-	image = stretch_image(image, scale_x1, scale_x2, scale_y1, scale_y2)
-	return cv2.resize(image, image_size)
+	return stretch_image(image, scale_x1, scale_x2, scale_y1, scale_y2)
 
 def crop_image(image, crop_size):
 	x1, x2, y1, y2 = crop_size
@@ -194,13 +192,14 @@ def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct
 
 		if np.random.uniform() < valid_pct:
 			files = train_files[i:i+num_images]
-			valid_images = list(preprocess_valid_images(map(img_from_file, files)))
-			flow = average_optical_flow_dense(valid_images)
-			flow_file_path = "{}/valid/flow_{}_{}.jpg".format(file_path, i, i+num_images)
+			valid_images = list(map(img_from_file, files))
+			flow = list(crop_resize_images([average_optical_flow_dense(valid_images)]))[0]
+			valid_images = list(crop_resize_images(valid_images))
+			flow_file_path = "{}/valid/flow_{}_{}.png".format(file_path, i, i+num_images)
 			cv2.imwrite(flow_file_path, flow)
 			img_file_paths = []
 			for img_i in range(len(valid_images)):
-				img_file_path = "{}/valid/frame_{}.jpg".format(file_path, i+img_i)
+				img_file_path = "{}/valid/frame_{}.png".format(file_path, i+img_i)
 				img_file_paths.append(img_file_path)
 				cv2.imwrite(img_file_path, valid_images[img_i])
 
@@ -210,12 +209,13 @@ def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct
 		else:
 			for j in range(num_augmentations):
 				aug_imgs = list(augment_images(map(img_from_file, train_files[i:i+num_images])))
-				flow = average_optical_flow_dense(aug_imgs)
-				flow_file_path = "{}/train/flow_{}_{}_aug_{}.jpg".format(file_path, i, i+num_images, j)
+				flow = list(crop_resize_images([average_optical_flow_dense(aug_imgs)]))[0]
+				aug_imgs = list(crop_resize_images(aug_imgs))
+				flow_file_path = "{}/train/flow_{}_{}_aug_{}.png".format(file_path, i, i+num_images, j)
 				cv2.imwrite(flow_file_path, flow)
 				aug_file_paths = []
 				for img_i in range(len(aug_imgs)):
-					aug_file_path = "{}/train/frame_{}_aug_{}.jpg".format(file_path, i+img_i, j)
+					aug_file_path = "{}/train/frame_{}_aug_{}.png".format(file_path, i+img_i, j)
 					aug_file_paths.append(aug_file_path)
 					cv2.imwrite(aug_file_path, aug_imgs[img_i])
 
@@ -228,6 +228,7 @@ def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct
 
 
 def create_optical_flow_data_recurrent(file_path):
+	assert(False == True) # TODO need to fix cropping
 	train_files, train_labels = raw_train_data()
 	results = []
 	print("Processing a total of {} images.".format(len(train_labels)))
@@ -240,7 +241,7 @@ def create_optical_flow_data_recurrent(file_path):
 
 		imgs = list(preprocess_valid_images(map(img_from_file, train_files[i-1:i+1])))
 		flow = average_optical_flow_dense(imgs)
-		flow_file_path = "{}/flow_{}.jpg".format(file_path, i)
+		flow_file_path = "{}/flow_{}.png".format(file_path, i)
 		cv2.imwrite(flow_file_path, flow)
 		row = [flow_file_path, speed]
 		results.append(row)
