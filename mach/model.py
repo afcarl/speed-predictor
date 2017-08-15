@@ -3,7 +3,7 @@
 from keras.models import Model, load_model
 from keras.layers import Dense, Input, Flatten, Dropout, Activation, TimeDistributed
 from keras.layers.normalization import BatchNormalization
-from keras.layers.pooling import GlobalAveragePooling2D
+from keras.layers.pooling import GlobalAveragePooling2D, GlobalMaxPooling2D
 from keras.layers.convolutional import Conv2D
 from keras.layers.merge import concatenate
 from keras import regularizers
@@ -127,36 +127,25 @@ def create_mobilenet_model(input_shape, alpha):
 
 def create_simple_optical_flow_model(input_shape):
 	input = Input(shape=input_shape, name='flow')
-	x = Conv2D(24, (5,5), strides=(2,2), kernel_regularizer=regularizers.l2(0.01))(input)
+	x = Conv2D(24, (5,5), strides=(2,2), padding='same', kernel_regularizer=regularizers.l2(0.01))(input)
 	x = BatchNormalization()(x)
 	x = Activation('elu')(x)
-	x = Conv2D(36, (5,5), strides=(2,2), kernel_regularizer=regularizers.l2(0.01))(x)
+	x = Conv2D(36, (5,5), strides=(2,2), padding='same', kernel_regularizer=regularizers.l2(0.01))(x)
 	x = BatchNormalization()(x)
 	x = Activation('elu')(x)
-	x = Conv2D(48, (5,5), strides=(2,2), kernel_regularizer=regularizers.l2(0.01))(x)
-	x = BatchNormalization()(x)
-	x = Activation('elu')(x)
-	# x = Dropout(0.2)(x)
-	x = Conv2D(64, (3,3), kernel_regularizer=regularizers.l2(0.01))(x)
-	x = BatchNormalization()(x)
-	x = Activation('elu')(x)
-	x = Conv2D(64, (3,3), kernel_regularizer=regularizers.l2(0.01))(x)
-	x = BatchNormalization()(x)
-	x = Activation('elu')(x)
-	# x = Dropout(0.2)(x)
-	# x = GlobalAveragePooling2D()(x)
+	x = Conv2D(48, (5,5), strides=(2,2), padding='same', kernel_regularizer=regularizers.l2(0.01))(x)
 	x = Flatten()(x)
-	x = Dense(128, kernel_regularizer=regularizers.l2(0.01))(x)
 	x = BatchNormalization()(x)
+	x = Dropout(0.2)(x)
 	x = Activation('elu')(x)
-	x = Dense(64, kernel_regularizer=regularizers.l2(0.01))(x)
-	x = BatchNormalization()(x)
+	x = Dense(512, kernel_regularizer=regularizers.l2(0.01))(x)
+	x = Dropout(0.5)(x)
 	x = Activation('elu')(x)
 	x = Dense(1, name='speed')(x)
 	model = Model(inputs=input, outputs=x, name='simple_optical_flow_model')
 	return model
 
-def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, dropout=0.5):
+def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, dropout=0.4):
 	input = Input(shape=input_shape, name='flow')
 
 	x = _conv_block(input, 32, alpha, strides=(2, 2))
@@ -166,21 +155,13 @@ def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, drop
 	x = _depthwise_conv_block(x, 128, alpha, depth_multiplier, block_id=3)
 
 	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, strides=(2, 2), block_id=4)
-	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
-	x = Dropout(0.1)(x)
+	x1 = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
 
-	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=6)
-	x = _depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=7)
-	x = Dropout(0.1)(x)
-
-	x = GlobalAveragePooling2D()(x)
-	x = BatchNormalization()(x)
+	x = GlobalMaxPooling2D()(x)
+	x = Dense(64, kernel_regularizer=regularizers.l2(0.01))(x)
 	x = Dropout(dropout)(x)
-	x = Dense(64)(x)
-	x = BatchNormalization()(x)
-	x = Activation('relu')(x)
+	x = Activation('elu')(x)
 	output = Dense(1, name='speed')(x)
 
 	model = Model(inputs=input, outputs=output, name='optical_flow_encoder')
 	return model
-
