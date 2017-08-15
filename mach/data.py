@@ -7,7 +7,8 @@ import pandas as pd
 from keras.applications.mobilenet import preprocess_input as mobilenet_preprocess_input
 from sklearn.model_selection import train_test_split
 
-from mach.util import full_path
+# from mach.util import full_path
+from util import full_path
 
 
 def raw_train_data():
@@ -228,7 +229,6 @@ def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct
 
 
 def create_optical_flow_data_recurrent(file_path):
-	assert(False == True) # TODO need to fix cropping
 	train_files, train_labels = raw_train_data()
 	results = []
 	print("Processing a total of {} images.".format(len(train_labels)))
@@ -237,10 +237,8 @@ def create_optical_flow_data_recurrent(file_path):
 		speed = train_labels[i]
 		if i % 100 == 0: print("Finished with {} original images.".format(i))
 
-		preprocess_valid_images
-
-		imgs = list(preprocess_valid_images(map(img_from_file, train_files[i-1:i+1])))
-		flow = average_optical_flow_dense(imgs)
+		imgs = list(map(img_from_file, train_files[i-1:i+1]))
+		flow = list(crop_resize_images([average_optical_flow_dense(imgs)]))[0]
 		flow_file_path = "{}/flow_{}.png".format(file_path, i)
 		cv2.imwrite(flow_file_path, flow)
 		row = [flow_file_path, speed]
