@@ -7,8 +7,8 @@ import pandas as pd
 from keras.applications.mobilenet import preprocess_input as mobilenet_preprocess_input
 from sklearn.model_selection import train_test_split
 
-# from mach.util import full_path
-from util import full_path
+from mach.util import full_path
+# from util import full_path
 
 
 def raw_train_data():
