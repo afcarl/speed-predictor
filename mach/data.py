@@ -12,9 +12,11 @@ from mach.util import full_path
 
 def raw_train_data():
 	image_path = full_path("data/orig/train/*.jpg")
-	image_files = glob.glob(image_path)
+	num_images = len(glob.glob(image_path))
+	# glob does not return image files in correct order!!!!!
+	image_files = [full_path("data/orig/train/frame_{}.jpg".format(i)) for i in range(num_images)]
 	label_path = "video_data/train.txt"
-	train_labels = read_txt_file(label_path)[0:len(image_files)]
+	train_labels = read_txt_file(label_path)[0:num_images]
 
 	return (image_files, train_labels)
 
@@ -27,8 +29,8 @@ def img_from_file(file):
   return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 ### Augmentation functions
-CROP_SIZE = (70,390,0,640)
-IMAGE_SIZE = (320, 160) # divisable by 32 for MobileNet
+CROP_SIZE = (134,330,32,608)
+IMAGE_SIZE = (288, 98) # divisable by 32 for MobileNet
 
 def preprocess_valid_images(images):
 	fn = lambda i: preprocess_valid_image(i, CROP_SIZE, IMAGE_SIZE)
@@ -43,10 +45,10 @@ def augment_images(images):
 	brightness_min = 0.7
 	brightness_max = 1.25
 	brightness = np.random.uniform(brightness_min, brightness_max)
-	translation_x_min = -30
-	translation_x_max = 30
-	translation_y_min = -30
-	translation_y_max = 30
+	translation_x_min = -20
+	translation_x_max = 20
+	translation_y_min = -20
+	translation_y_max = 20
 	translation_x = np.random.uniform(translation_x_min, translation_x_max)
 	translation_y = np.random.uniform(translation_y_min, translation_y_max)
 	scale_x1_min = 0
@@ -78,36 +80,37 @@ def crop_image(image, crop_size):
 	return image[x1:x2, y1:y2]
 
 def augment_image_brightness(image, brightness):
-    ### Augment brightness
-    image1 = cv2.cvtColor(image,cv2.COLOR_RGB2HSV)
-    image1[:,:,2] = image1[:,:,2]*brightness
-    return cv2.cvtColor(image1,cv2.COLOR_HSV2RGB)
+	### Augment brightness
+	image1 = np.float32(cv2.cvtColor(image,cv2.COLOR_RGB2HSV))
+	image1[:,:,2] = image1[:,:,2]*brightness
+	image1 = np.uint8(np.clip(image1, 0., 255.))
+	return cv2.cvtColor(image1,cv2.COLOR_HSV2RGB)
 
 def translate_image(image, translation_x, translation_y):
-    # Translation augmentation
-    Trans_M = np.float32([[1,0,translation_x],[0,1,translation_y]])
-    rows,cols,channels = image.shape
-    return cv2.warpAffine(image,Trans_M,(cols,rows))
+	# Translation augmentation
+	Trans_M = np.float32([[1,0,translation_x],[0,1,translation_y]])
+	rows,cols,channels = image.shape
+	return cv2.warpAffine(image,Trans_M,(cols,rows))
 
 def stretch_image(image,scale_x1,scale_x2,scale_y1,scale_y2):
-    # Stretching augmentation
-    p1 = (scale_x1,scale_y1)
-    p2 = (image.shape[1]-scale_x2,scale_y1)
-    p3 = (image.shape[1]-scale_x2,image.shape[0]-scale_y2)
-    p4 = (scale_x1,image.shape[0]-scale_y2)
+	# Stretching augmentation
+	p1 = (scale_x1,scale_y1)
+	p2 = (image.shape[1]-scale_x2,scale_y1)
+	p3 = (image.shape[1]-scale_x2,image.shape[0]-scale_y2)
+	p4 = (scale_x1,image.shape[0]-scale_y2)
 
-    pts1 = np.float32([[p1[0],p1[1]],
-                   [p2[0],p2[1]],
-                   [p3[0],p3[1]],
-                   [p4[0],p4[1]]])
-    pts2 = np.float32([[0,0],
-                   [image.shape[1],0],
-                   [image.shape[1],image.shape[0]],
-                   [0,image.shape[0]]])
+	pts1 = np.float32([[p1[0],p1[1]],
+	               [p2[0],p2[1]],
+	               [p3[0],p3[1]],
+	               [p4[0],p4[1]]])
+	pts2 = np.float32([[0,0],
+	               [image.shape[1],0],
+	               [image.shape[1],image.shape[0]],
+	               [0,image.shape[0]]])
 
-    M = cv2.getPerspectiveTransform(pts1,pts2)
-    image = cv2.warpPerspective(image,M,(image.shape[1],image.shape[0]))
-    return np.array(image,dtype=np.uint8)
+	M = cv2.getPerspectiveTransform(pts1,pts2)
+	image = cv2.warpPerspective(image,M,(image.shape[1],image.shape[0]))
+	return np.array(image,dtype=np.uint8)
 
 
 def average_optical_flow_dense(images):
@@ -128,11 +131,11 @@ def average_optical_flow_dense(images):
 	for i in range(len(gray_images) - 1):
 		old = gray_images[i]
 		new = gray_images[i+1]
-		result.append(single_optical_flow_dense(old, new, images[i+1]))
+		result.append(single_optical_flow_dense(old, new))
 
 	return np.mean(result, axis=0)
 
-def single_optical_flow_dense(old_image_gray, current_image_gray, current_image):
+def single_optical_flow_dense(old_image_gray, current_image_gray):
 	"""
 	input: old_image_gray, current_image_gray (gray images)
 	* calculates optical flow magnitude and angle and places it into HSV image
@@ -140,17 +143,11 @@ def single_optical_flow_dense(old_image_gray, current_image_gray, current_image)
 	* set the value to the magnitude returned from computing the flow params
 	* Convert from HSV to RGB and return RGB image with same size as original image
 	"""
-  # set saturation
-	out_shape = list(old_image_gray.shape) + [3]
-	hsv_flow = np.zeros(out_shape)
-	hsv_flow[:,:,1] = cv2.cvtColor(current_image, cv2.COLOR_RGB2HSV)[:,:,1]
-	# hsv_flow[...,1] = 255
-
 	# Flow Parameters
 	# flow = None
 	pyr_scale = 0.5
 	levels = 1
-	winsize = 15
+	winsize = 12
 	iterations = 2
 	poly_n = 5
 	poly_sigma = 1.3
@@ -168,17 +165,19 @@ def single_optical_flow_dense(old_image_gray, current_image_gray, current_image)
 																			poly_sigma, 
 																			extra)
 
-	# convert from cartesian to polar
-	mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
-	# hue corresponds to direction
-	hsv_flow[...,0] = ang*180/np.pi/2
-	# value corresponds to magnitude
-	hsv_flow[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
-	# convert HSV to uint8
-	hsv_flow = np.asarray(hsv_flow, dtype=np.uint8)
-	# convert to RGB
-	rgb = cv2.cvtColor(hsv_flow,cv2.COLOR_HSV2RGB)
-	
+	return flow_to_rgb(flow)
+
+
+def flow_to_rgb(flow):
+	h, w = flow.shape[:2]
+	fx, fy = flow[:,:,0], flow[:,:,1]
+	ang = np.arctan2(fy, fx) + np.pi
+	v = np.sqrt(fx*fx+fy*fy)
+	hsv = np.zeros((h, w, 3), np.uint8)
+	hsv[...,0] = ang*(180/np.pi/2)
+	hsv[...,1] = 255
+	hsv[...,2] = np.minimum(v*4, 255)
+	rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
 	return rgb
 
 
