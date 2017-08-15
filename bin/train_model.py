@@ -96,7 +96,7 @@ def main(_):
 
 	print("Compiling model.")
 	model.compile(
-		optimizer= 'rmsprop', #Adam(lr=0.0005, clipnorm=15.),
+		optimizer= Adam(lr=0.0001),#, clipnorm=15.),
 		loss={'speed': 'mean_squared_error'},
 		metrics=['mean_absolute_error', 'mean_squared_error'])
 

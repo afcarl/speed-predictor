@@ -139,6 +139,9 @@ def create_simple_optical_flow_model(input_shape):
 	x = Dropout(0.1)(x)
 	x = Activation('elu')(x)
 	x = Dense(512, kernel_regularizer=regularizers.l2(0.01))(x)
+	x = Dropout(0.1)(x)
+	x = Activation('elu')(x)
+	x = Dense(128, kernel_regularizer=regularizers.l2(0.01))(x)
 	x = Activation('elu')(x)
 	x = Dense(1, name='speed')(x)
 	model = Model(inputs=input, outputs=x, name='simple_optical_flow_model')
@@ -158,7 +161,6 @@ def MobileNetSlim(input_shape, alpha, depth_multiplier=1, output_classes=1, drop
 
 	x = GlobalMaxPooling2D()(x)
 	x = Dense(64, kernel_regularizer=regularizers.l2(0.01))(x)
-	x = Dropout(dropout)(x)
 	x = Activation('elu')(x)
 	output = Dense(1, name='speed')(x)
 
