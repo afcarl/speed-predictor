@@ -98,7 +98,7 @@ def main(_):
 	model.compile(
 		optimizer= 'rmsprop', #Adam(lr=0.0005, clipnorm=15.),
 		loss={'speed': 'mean_squared_error'},
-		metrics=['mean_absolute_error'])
+		metrics=['mean_absolute_error', 'mean_squared_error'])
 
 	print("Starting model train process.")
 	model.fit_generator(train_generator,
