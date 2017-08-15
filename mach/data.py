@@ -21,6 +21,14 @@ def raw_train_data():
 
 	return (image_files, train_labels)
 
+def raw_test_data():
+	image_path = full_path("data/orig/test/*.png")
+	num_images = len(glob.glob(image_path))
+	# glob does not return image files in correct order!!!!!
+	image_files = [full_path("data/orig/test/frame_{}.png".format(i)) for i in range(num_images)]
+
+	return image_files
+
 def read_txt_file(file_path):
 	with open(full_path(file_path), "r") as f:
 		return np.array(list(map(float, f)))
@@ -179,8 +187,30 @@ def flow_to_rgb(flow):
 	rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
 	return rgb
 
+def create_optical_flow_data(num_images, num_augmentations, file_path, is_test, is_train_full):
+	if is_test:
+		create_optical_flow_data_full(num_images, num_augmentations, "{}/test".format(file_path), raw_test_data())
+	elif is_train_full:
+		create_optical_flow_data_full(num_images, num_augmentations, "{}/train_full".format(file_path), raw_train_data()[0])
+	else:
+		create_optical_flow_data_train(num_images, num_augmentations, file_path)
 
-def create_optical_flow_data(num_images, num_augmentations, file_path, valid_pct=0.3):
+def create_optical_flow_data_full(num_images, num_augmentations, file_path, files):
+	results = []
+	print("Processing a total of {} images.".format(len(files)))
+	for i in range(len(files)-num_images+1):
+		if i % 100 == 0: print("Finished with {} original images.".format(i))
+
+		files_batch = files[i:i+num_images]
+		images = list(map(img_from_file, files_batch))
+		flow = list(crop_resize_images([average_optical_flow_dense(images)]))[0]
+			
+		flow_file_path = "{}/flow_{}_{}.png".format(file_path, i, i+num_images)
+		results.append(flow_file_path)
+		cv2.imwrite(flow_file_path, flow)
+	pd.DataFrame(results, columns=['flow_path']).to_csv("{}/files_labels.csv".format(file_path))
+
+def create_optical_flow_data_train(num_images, num_augmentations, file_path, valid_pct=0.3):
 	train_files, train_labels = raw_train_data()
 	end = ((len(train_labels) // num_images - 1) * num_images)
 	train_results = []
@@ -318,6 +348,29 @@ class RecurrentGenerator():
 
 def recurrent_sequence(idx, df, sequence_size):
 	return mobilenet_preprocessor(map(img_from_file, df['flow_path'][idx:idx+sequence_size]))
+
+def create_mobilenet_full_generator(folder_path, is_debug):
+	df = pd.read_csv("{}/files_labels.csv".format(folder_path))
+	if is_debug:
+		end = min(len(df), 1024)
+		df = df[0:end]
+	flow_paths = df['flow_path']
+	return len(df), MobilenetFullGenerator(flow_paths)
+
+class MobilenetFullGenerator():
+	def __init__(self, files):
+		self.files = files
+		self.i = -1
+
+	def __next__(self):
+		return self.next()
+
+	def next(self):
+		self.i += 1
+		if self.i >= len(self.files):
+			self.i = 0
+		return mobilenet_preprocessor(map(img_from_file, [self.files[self.i]]))
+
 
 def create_mobilenet_generators(folder_path, batch_size, num_images, is_debug):
 	train = create_mobilenet_generator("{}/train".format(folder_path), batch_size, num_images, is_debug)

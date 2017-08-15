@@ -27,15 +27,13 @@ class Config():
 		else:
 			return full_path("data/optical_flow_{}_augmented_{}".format(self.num_images, self.num_augmentations))
 
-flags.DEFINE_integer('num_images', 2, 'The number of images in an optical flow batch')
-flags.DEFINE_integer('num_augmentations', 5, 'The number of times a set of image should be augmented.')
+flags.DEFINE_integer('num_images', 3, 'The number of images in an optical flow batch')
+flags.DEFINE_integer('num_augmentations', 1, 'The number of times a set of image should be augmented.')
 flags.DEFINE_boolean('is_test', False, 'If this is for the test video or not.')
-flags.DEFINE_boolean('is_recurrent', True, 'If this is processing for a recurrent model or not.')
+flags.DEFINE_boolean('is_train_full', False, 'If this is for evaluating the full training video or not.')
+flags.DEFINE_boolean('is_recurrent', False, 'If this is processing for a recurrent model or not.')
 
 def main(_):
-	if FLAGS.is_test:
-		assert(True == False)
-
 	config = Config(FLAGS.num_images, FLAGS.num_augmentations, FLAGS.is_recurrent)
 
 	if os.path.exists(config.folder_path()) == False:
@@ -43,13 +41,15 @@ def main(_):
 		if FLAGS.is_recurrent == False:
 			os.makedirs(config.folder_path() + "/train")
 			os.makedirs(config.folder_path() + "/valid")
+			os.makedirs(config.folder_path() + "/test")
+	os.makedirs(config.folder_path() + "/train_full")
 
 	start = time.time()
 	print("About to create optical flow images.")
 	if FLAGS.is_recurrent:
 		create_optical_flow_data_recurrent(config.folder_path())
 	else:
-		create_optical_flow_data(FLAGS.num_images, FLAGS.num_augmentations, config.folder_path())
+		create_optical_flow_data(FLAGS.num_images, FLAGS.num_augmentations, config.folder_path(), FLAGS.is_test, FLAGS.is_train_full)
 	run_time = time.time() - start
 	print("Finished creating opfical flow images. Took {0:.2f} seconds.".format(run_time))
 
